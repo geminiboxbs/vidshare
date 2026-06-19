@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidShare - Strona Główna</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🎯 GECODE Video</div>
+        <div class="nav-links">
+            <a href="index.html" class="active">Główna</a>
+            <a href="upload.html">Dodaj Film</a>
+            <a href="profile.html" id="nav-profile-link">Mój Profil</a>
+        </div>
+    </nav>
+
+    <div class="container main-layout">
+        <main class="video-section">
+            <h2>Najnowsze Filmy</h2>
+            <div class="video-container" id="video-player-container">
+                <video id="main-player" controls poster="https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800">
+                    <source src="" type="video/mp4">
+                    Twoja przeglądarka nie obsługuje odtwarzacza wideo.
+                </video>
+                <h3 id="current-video-title">Wybierz film z listy poniżej</h3>
+            </div>
+
+            <div class="video-grid" id="videos-grid">
+                </div>
+        </main>
+
+        <aside class="sidebar">
+            <div class="community-box">
+                <h3>Stwórz Post / Ankietę</h3>
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('post')">Zwykły Post</button>
+                    <button class="tab-btn" onclick="switchTab('poll')">Ankieta</button>
+                </div>
+
+                <form id="post-form" class="feed-form">
+                    <textarea id="post-content" placeholder="O czym myślisz?" required></textarea>
+                    <button type="submit" class="btn">Opublikuj Post</button>
+                </form>
+
+                <form id="poll-form" class="feed-form hidden">
+                    <input type="text" id="poll-question" placeholder="Pytanie ankietowe..." required>
+                    <input type="text" class="poll-option" placeholder="Opcja 1" required>
+                    <input type="text" class="poll-option" placeholder="Opcja 2" required>
+                    <button type="button" class="btn-secondary" id="add-option-btn">+ Dodaj opcję</button>
+                    <button type="submit" class="btn">Uruchom Ankietę</button>
+                </form>
+            </div>
+
+            <div class="feed-list" id="community-feed">
+                </div>
+        </aside>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
