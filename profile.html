@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mój Profil - GECODE Video</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🎯 GECODE Video</div>
+        <div class="nav-links">
+            <a href="index.html">Główna</a>
+            <a href="upload.html">Dodaj Film</a>
+            <a href="profile.html" class="active">Mój Profil</a>
+        </div>
+    </nav>
+
+    <div class="container small-container">
+        <div class="card profile-card">
+            <h2>Twój Prawdziwy Profil</h2>
+            
+            <div class="avatar-container">
+                <img id="profile-avatar-preview" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200" alt="Avatar">
+                <label for="avatar-input" class="btn-avatar">Zmień zdjęcie</label>
+                <input type="file" id="avatar-input" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="profile-info">
+                <h3 id="profile-username-display">Użytkownik_921</h3>
+                <p>Status: <span class="badge badge-verified">Zweryfikowany Profil</span></p>
+            </div>
+
+            <hr>
+
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <span class="stat-number" id="stat-videos-count">0</span>
+                    <span class="stat-label">Filmów</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="stat-posts-count">0</span>
+                    <span class="stat-label">Postów / Ankiet</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
