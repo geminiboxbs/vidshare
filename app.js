@@ -2,39 +2,139 @@
 const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
 const MAX_DURATION_SECONDS = 2 * 60 * 60; // 2 Godziny
 
-// --- INICJALIZACJA DANYCH W LOCALSTORAGE ---
+// --- STRAŻNIK SESJI (BEZPIECZEŃSTWO ANTY-FAKE) ---
+const currentUser = JSON.parse(localStorage.getItem('logged_in_user'));
+const isAuthPage = window.location.pathname.endsWith('auth.html');
+
+if (!currentUser && !isAuthPage) {
+    // Jeśli użytkownik nie jest zalogowany i próbuje wejść na główną stronę -> przekieruj do bramki
+    window.location.href = 'auth.html';
+}
+
+// --- INICJALIZACJA DANYCH BAZY DANYCH W LOCALSTORAGE ---
 if (!localStorage.getItem('platform_videos')) {
     localStorage.setItem('platform_videos', JSON.stringify([
-        { id: 1, title: 'Wprowadzenie do Architektury Systemów', duration: '10:15', url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', thumb: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400' },
-        { id: 2, title: 'Test Wydajności Sieci Bazy Danych', duration: '1:45:20', url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', thumb: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400' }
+        { id: 1, title: 'Wprowadzenie do Architektury Systemów', duration: '10:15', url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', thumb: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400', creator: 'GecodeAdmin', verified: true },
+        { id: 2, title: 'Test Wydajności Sieci Bazy Danych', duration: '1:45:20', url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', thumb: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400', creator: 'SystemArch', verified: true }
     ]));
 }
 if (!localStorage.getItem('platform_feed')) {
     localStorage.setItem('platform_feed', JSON.stringify([
-        { id: 1, type: 'post', user: 'JanKowalski', content: 'Witajcie na nowej, zdecentralizowanej platformie! Zero fałszywych kont, pełna weryfikacja plików.' },
-        { id: 2, type: 'poll', user: 'Moderator AI', question: 'Jaki framework frontendowy preferujesz do dużych aplikacji?', options: [{txt: 'React', votes: 12}, {txt: 'Vue', votes: 5}, {txt: 'Svelte', votes: 8}] }
+        { id: 1, type: 'post', user: 'JanKowalski', verified: true, content: 'Witajcie na nowej platformie! Zero fałszywych kont, pełna weryfikacja biometryczna każdego człowieka.' },
+        { id: 2, type: 'poll', user: 'Moderator AI', verified: true, question: 'Czy podoba Ci się obowiązkowy system weryfikacji użytkowników?', options: [{txt: 'Tak, koniec z botami i hejtem', votes: 42}, {txt: 'Nie, wolę anonimowość', votes: 3}] }
     ]));
 }
-if (!localStorage.getItem('platform_avatar')) {
-    localStorage.setItem('platform_avatar', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200');
-}
 
-// --- GLOBALNY EVENT LISTENER PO ZAŁADOWANIU DOM ---
+// --- GLOBALNY EVENT LISTENER ---
 document.addEventListener('DOMContentLoaded', () => {
     updateGlobalAvatars();
     
-    // Obsługa logiki dla konkretnych podstron
-    if (document.getElementById('videos-grid')) renderMainPage();
-    if (document.getElementById('upload-form')) initUploadEngine();
-    if (document.getElementById('profile-avatar-preview')) initProfileEngine();
+    if (isAuthPage) {
+        initAuthEngine();
+    } else {
+        if (document.getElementById('videos-grid')) renderMainPage();
+        if (document.getElementById('upload-form')) initUploadEngine();
+        if (document.getElementById('profile-avatar-preview')) initProfileEngine();
+    }
 });
 
 function updateGlobalAvatars() {
-    const cachedAvatar = localStorage.getItem('platform_avatar');
+    if (!currentUser) return;
     const navLink = document.getElementById('nav-profile-link');
-    if (navLink && cachedAvatar) {
-        navLink.innerHTML = `<img src="${cachedAvatar}" style="width:25px; height:25px; border-radius:50%; vertical-align:middle; margin-right:5px; object-fit:cover;"> Profil`;
+    if (navLink) {
+        navLink.innerHTML = `<img src="${currentUser.avatar}" style="width:25px; height:25px; border-radius:50%; vertical-align:middle; margin-right:5px; object-fit:cover;"> ${currentUser.username}`;
     }
+}
+
+// ==========================================
+// SILNIK AUTORYZACJI I ANTY-BOTÓW (auth.html)
+// ==========================================
+function initAuthEngine() {
+    const regForm = document.getElementById('register-form');
+    const step1 = document.getElementById('auth-step-1');
+    const step2 = document.getElementById('auth-step-2');
+    const step3 = document.getElementById('auth-step-3');
+    
+    const bioFile = document.getElementById('biometric-file');
+    const bioPreview = document.getElementById('biometric-preview');
+    const startVerifyBtn = document.getElementById('start-verification-btn');
+    const scanProgressBox = document.getElementById('scan-progress-box');
+    const scanBarFill = document.getElementById('scan-bar-fill');
+    const scanStatusText = document.getElementById('scan-status-text');
+    const verifyError = document.getElementById('verification-error');
+
+    let tempUserData = {};
+    let base64Avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200";
+
+    // Rejestracja krok 1
+    regForm.onsubmit = (e) => {
+        e.preventDefault();
+        tempUserData = {
+            username: document.getElementById('reg-username').value.trim(),
+            fullname: document.getElementById('reg-fullname').value.trim(),
+            password: document.getElementById('reg-password').value
+        };
+        
+        step1.classList.add('hidden');
+        step2.classList.remove('hidden');
+    };
+
+    // Wczytanie prawdziwego zdjęcia z telefonu/PC
+    bioFile.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                base64Avatar = event.target.result;
+                bioPreview.src = base64Avatar;
+                startVerifyBtn.disabled = false; // Aktywuj przycisk po wgraniu zdjęcia
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // Symulacja zaawansowanego skanera anty-fake / rozpoznawania żywego człowieka
+    startVerifyBtn.onclick = () => {
+        startVerifyBtn.disabled = true;
+        verifyError.classList.add('hidden');
+        scanProgressBox.classList.remove('hidden');
+        
+        const phases = [
+            { t: "Analiza struktury pliku i metadanych EXIF...", p: 20 },
+            { t: "Szukanie punktów kluczowych twarzy (Głębokie mapowanie)...", p: 45 },
+            { t: "Weryfikacja żywotności (Liveness Test) - Detekcja Botów...", p: 75 },
+            { t: "Porównywanie z bazą danych unikalnych profili...", p: 95 },
+            { t: "Sukces! Człowiek zweryfikowany poprawnie.", p: 100 }
+        ];
+
+        let currentPhase = 0;
+        const interval = setInterval(() => {
+            if (currentPhase < phases.length) {
+                scanStatusText.innerText = phases[currentPhase].t;
+                scanBarFill.style.width = `${phases[currentPhase].p}%`;
+                currentPhase++;
+            } else {
+                clearInterval(interval);
+                
+                // Zapisz użytkownika jako w 100% zweryfikowanego realnego człowieka
+                const userData = {
+                    username: tempUserData.username,
+                    fullname: tempUserData.fullname,
+                    avatar: base64Avatar,
+                    isVerifiedHuman: true
+                };
+                
+                localStorage.setItem('logged_in_user', JSON.stringify(userData));
+                
+                step2.classList.add('hidden');
+                step3.classList.remove('hidden');
+            }
+        }, 1000); // 1 sekunda na każdą fazę analizy bezpieczeństwa
+    };
+
+    document.getElementById('enter-platform-btn').onclick = () => {
+        window.location.href = 'index.html';
+    };
 }
 
 // ==========================================
@@ -54,13 +154,14 @@ function renderMainPage() {
             <img class="video-thumbnail" src="${v.thumb}" alt="Miniatura">
             <div class="video-info">
                 <h4>${v.title}</h4>
+                <p>👤 ${v.creator} ${v.verified ? '<span class="badge badge-verified" style="font-size:0.65rem; padding:1px 5px;">Prawdziwy Człowiek</span>' : ''}</p>
                 <p>Czas trwania: ${v.duration}</p>
             </div>
         `;
         card.onclick = () => {
             player.src = v.url;
             player.play();
-            currentTitle.innerText = v.title;
+            currentTitle.innerHTML = `${v.title} <br> <small style="color:var(--text-muted); font-size:0.9rem;">Autor: ${v.creator}</small>`;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
         grid.appendChild(card);
@@ -89,7 +190,6 @@ function switchTab(type) {
 }
 
 function initFeedFormEvents() {
-    // Dynamiczne dodawanie opcji ankiety
     const addOptionBtn = document.getElementById('add-option-btn');
     if (addOptionBtn) {
         addOptionBtn.onclick = () => {
@@ -108,19 +208,23 @@ function initFeedFormEvents() {
         };
     }
 
-    // Obsługa wysyłania zwykłego postu
     document.getElementById('post-form').onsubmit = (e) => {
         e.preventDefault();
         const content = document.getElementById('post-content').value;
         const feed = JSON.parse(localStorage.getItem('platform_feed'));
         
-        feed.unshift({ id: Date.now(), type: 'post', user: 'Mój_Profil', content: content });
+        feed.unshift({ 
+            id: Date.now(), 
+            type: 'post', 
+            user: currentUser.username, 
+            verified: currentUser.isVerifiedHuman, 
+            content: content 
+        });
         localStorage.setItem('platform_feed', JSON.stringify(feed));
         document.getElementById('post-content').value = '';
         renderFeed();
     };
 
-    // Obsługa wysyłania ankiety
     document.getElementById('poll-form').onsubmit = (e) => {
         e.preventDefault();
         const question = document.getElementById('poll-question').value;
@@ -134,10 +238,16 @@ function initFeedFormEvents() {
         });
 
         const feed = JSON.parse(localStorage.getItem('platform_feed'));
-        feed.unshift({ id: Date.now(), type: 'poll', user: 'Mój_Profil', question: question, options: optionsData });
+        feed.unshift({ 
+            id: Date.now(), 
+            type: 'poll', 
+            user: currentUser.username, 
+            verified: currentUser.isVerifiedHuman, 
+            question: question, 
+            options: optionsData 
+        });
         localStorage.setItem('platform_feed', JSON.stringify(feed));
         
-        // Reset formularza ankiety
         document.getElementById('poll-form').reset();
         renderFeed();
     };
@@ -146,7 +256,6 @@ function initFeedFormEvents() {
 function renderFeed() {
     const feed = JSON.parse(localStorage.getItem('platform_feed'));
     const container = document.getElementById('community-feed');
-    const avatar = localStorage.getItem('platform_avatar');
     container.innerHTML = '';
 
     feed.forEach(item => {
@@ -155,8 +264,9 @@ function renderFeed() {
         
         let header = `
             <div class="feed-header">
-                <img class="feed-avatar" src="${item.user === 'Mój_Profil' ? avatar : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=50'}">
+                <img class="feed-avatar" src="${item.user === currentUser?.username ? currentUser.avatar : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=50'}">
                 <strong>${item.user}</strong>
+                ${item.verified ? '<span class="badge badge-verified">✓ Człowiek</span>' : ''}
             </div>`;
 
         if (item.type === 'post') {
@@ -207,14 +317,12 @@ function initUploadEngine() {
         const file = fileInput.files[0];
         if (!file) return;
 
-        // KROK 1: Walidacja binarna rozmiaru (2 GB Limit)
         if (file.size > MAX_FILE_SIZE_BYTES) {
             errorBox.innerText = `Błąd: Plik przekracza limit 2 GB (Twój plik: ${(file.size / (1024*1024*1024)).toFixed(2)} GB).`;
             errorBox.classList.remove('hidden');
             return;
         }
 
-        // KROK 2: Odczyt metadanych wideo i weryfikacja czasu trwania (2h Limit)
         const objectURL = URL.createObjectURL(file);
         videoValidator.src = objectURL;
         
@@ -232,7 +340,6 @@ function initUploadEngine() {
                 return;
             }
 
-            // KROK 3: Symulacja Chunked Upload (Wysyłanie porcjami po 10MB dla plików 2GB)
             simulateChunkedUpload(file, duration);
         };
     };
@@ -240,7 +347,7 @@ function initUploadEngine() {
     function simulateChunkedUpload(file, duration) {
         let uploadedBytes = 0;
         const totalBytes = file.size;
-        const chunkSize = 10 * 1024 * 1024; // Porcje po 10MB
+        const chunkSize = 10 * 1024 * 1024; 
         
         const interval = setInterval(() => {
             uploadedBytes += chunkSize;
@@ -253,7 +360,6 @@ function initUploadEngine() {
             if (uploadedBytes >= totalBytes) {
                 clearInterval(interval);
                 
-                // Zapisz nowo dodany film w tablicy symulującej serwer
                 const currentVideos = JSON.parse(localStorage.getItem('platform_videos'));
                 const minutes = Math.floor(duration / 60);
                 const seconds = Math.floor(duration % 60).toString().padStart(2, '0');
@@ -262,20 +368,21 @@ function initUploadEngine() {
                     id: Date.now(),
                     title: document.getElementById('video-title').value,
                     duration: `${minutes}:${seconds}`,
-                    url: URL.createObjectURL(file), // Plik działa lokalnie jako blob URL
-                    thumb: 'https://images.unsplash.com/photo-161152617213-7d7a39e9b1d7?w=400'
+                    url: URL.createObjectURL(file),
+                    thumb: 'https://images.unsplash.com/photo-161152617213-7d7a39e9b1d7?w=400',
+                    creator: currentUser.username,
+                    verified: currentUser.isVerifiedHuman
                 });
                 
                 localStorage.setItem('platform_videos', JSON.stringify(currentVideos));
                 
                 statusText.innerText = "Serwer scalanie bloków danych... Gotowe!";
-                successBox.innerText = "Sukces! Film przeszedł poprawnie weryfikację i został dodany na stronę główną.";
+                successBox.innerText = "Sukces! Film został pomyślnie zwalidowany i opublikowany.";
                 successBox.classList.remove('hidden');
                 document.getElementById('upload-submit-btn').disabled = false;
                 form.reset();
-                updateGlobalAvatars();
             }
-        }, 150); // Szybkie interwały dla celów prezentacji frontendu
+        }, 150);
     }
 }
 
@@ -283,37 +390,18 @@ function initUploadEngine() {
 // LOGIKA PROFILU (profile.html)
 // ==========================================
 function initProfileEngine() {
-    const avatarInput = document.getElementById('avatar-input');
     const avatarPreview = document.getElementById('profile-avatar-preview');
     
-    // Załaduj zapisany avatar
-    avatarPreview.src = localStorage.getItem('platform_avatar');
+    // Załaduj dane zalogowanego usera
+    avatarPreview.src = currentUser.avatar;
+    document.getElementById('profile-username-display').innerText = currentUser.username;
 
-    // Liczniki statystyk
     const videos = JSON.parse(localStorage.getItem('platform_videos')) || [];
     const feed = JSON.parse(localStorage.getItem('platform_feed')) || [];
     
-    // Filtrujemy tylko rzeczy dodane przez użytkownika
-    const myVideosCount = videos.filter(v => v.id > 10).length; 
-    const myFeedCount = feed.filter(f => f.user === 'Mój_Profil').length;
+    const myVideosCount = videos.filter(v => v.creator === currentUser.username).length; 
+    const myFeedCount = feed.filter(f => f.user === currentUser.username).length;
 
     document.getElementById('stat-videos-count').innerText = myVideosCount;
     document.getElementById('stat-posts-count').innerText = myFeedCount;
-
-    // Obsługa wczytywania PRAWDZIWEGO pliku graficznego z komputera/telefonu
-    avatarInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const base64Image = event.target.result;
-                // Zapis binarnego Base64 do LocalStorage
-                localStorage.setItem('platform_avatar', base64Image);
-                // Aktualizacja w czasie rzeczywistym na komponencie
-                avatarPreview.src = base64Image;
-                updateGlobalAvatars();
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 }
