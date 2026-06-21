@@ -20,8 +20,8 @@ if (!localStorage.getItem('platform_videos')) {
 }
 if (!localStorage.getItem('platform_feed')) {
     localStorage.setItem('platform_feed', JSON.stringify([
-        { id: 1, type: 'post', user: 'JanKowalski', verified: true, content: 'Witajcie na nowej platformie! Zero fałszywych kont, pełna weryfikacja biometryczna każdego człowieka.' },
-        { id: 2, type: 'poll', user: 'Moderator AI', verified: true, question: 'Czy podoba Ci się obowiązkowy system weryfikacji użytkowników?', options: [{txt: 'Tak, koniec z botami i hejtem', votes: 42}, {txt: 'Nie, wolę anonimowość', votes: 3}] }
+        { id: 1, type: 'post', user: 'JanKowalski', verified: true, content: 'Witajcie na nowej platformie! Zero fałszywych kont, pełna weryfikacja każdego profilu poprzez tokeny sieciowe.' },
+        { id: 2, type: 'poll', user: 'Moderator AI', verified: true, question: 'Czy system autoryzacji numerów skutecznie blokuje boty farmowe?', options: [{txt: 'Tak, odcina 99% spamu', votes: 61}, {txt: 'Nie, boty znajdą sposób', votes: 4}] }
     ]));
 }
 
@@ -55,8 +55,8 @@ function initAuthEngine() {
     const step2 = document.getElementById('auth-step-2');
     const step3 = document.getElementById('auth-step-3');
     
-    const bioFile = document.getElementById('biometric-file');
-    const bioPreview = document.getElementById('biometric-preview');
+    const smsInput = document.getElementById('sms-code-input');
+    const smsInfoText = document.getElementById('sms-info-text');
     const startVerifyBtn = document.getElementById('start-verification-btn');
     const scanProgressBox = document.getElementById('scan-progress-box');
     const scanBarFill = document.getElementById('scan-bar-fill');
@@ -64,63 +64,66 @@ function initAuthEngine() {
     const verifyError = document.getElementById('verification-error');
 
     let tempUserData = {};
-    let base64Avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200";
+    let simulatedGeneratedCode = "";
 
-    // Rejestracja krok 1
+    // Krok 1: Wysłanie formularza bazowego
     regForm.onsubmit = (e) => {
         e.preventDefault();
+        const phoneNumber = document.getElementById('reg-phone').value.trim();
+        
         tempUserData = {
             username: document.getElementById('reg-username').value.trim(),
             fullname: document.getElementById('reg-fullname').value.trim(),
+            phone: phoneNumber,
             password: document.getElementById('reg-password').value
         };
         
+        // Generowanie losowego kodu bezpieczeństwa (symulacja bramki SMS)
+        simulatedGeneratedCode = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Przejście do kroku tokena
         step1.classList.add('hidden');
         step2.classList.remove('hidden');
+        smsInfoText.innerHTML = `Wysłaliśmy systemowy kod na numer <strong>${phoneNumber}</strong>.<br><span style="color:#38d9a9; font-weight:bold;">Twój symulowany kod SMS to: ${simulatedGeneratedCode}</span>`;
     };
 
-    // Wczytanie prawdziwego zdjęcia z telefonu/PC
-    bioFile.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                base64Avatar = event.target.result;
-                bioPreview.src = base64Avatar;
-                startVerifyBtn.disabled = false; // Aktywuj przycisk po wgraniu zdjęcia
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    // Symulacja zaawansowanego skanera anty-fake / rozpoznawania żywego człowieka
+    // Krok 2: Zatwierdzenie tokenu SMS i test czystości bazy danych
     startVerifyBtn.onclick = () => {
-        startVerifyBtn.disabled = true;
+        const userEnteredCode = smsInput.value.trim();
+        
+        if (userEnteredCode !== simulatedGeneratedCode) {
+            verifyError.innerText = "Błąd: Wprowadzony token SMS jest nieprawidłowy. Spróbuj ponownie.";
+            verifyError.classList.remove('hidden');
+            return;
+        }
+
         verifyError.classList.add('hidden');
         scanProgressBox.classList.remove('hidden');
+        startVerifyBtn.disabled = true;
         
-        const phases = [
-            { t: "Analiza struktury pliku i metadanych EXIF...", p: 20 },
-            { t: "Szukanie punktów kluczowych twarzy (Głębokie mapowanie)...", p: 45 },
-            { t: "Weryfikacja żywotności (Liveness Test) - Detekcja Botów...", p: 75 },
-            { t: "Porównywanie z bazą danych unikalnych profili...", p: 95 },
-            { t: "Sukces! Człowiek zweryfikowany poprawnie.", p: 100 }
+        const verificationPhases = [
+            { t: "Nawiązywanie bezpiecznego połączenia z serwerem telekomunikacyjnym...", p: 30 },
+            { t: "Sprawdzanie unikalności numeru SIM (Wykrywanie duplikatów VoIP)...", p: 65 },
+            { t: "Walidacja anty-spamowa i rejestracja rekordu użytkownika...", p: 90 },
+            { t: "Autoryzacja zakończona sukcesem!", p: 100 }
         ];
 
         let currentPhase = 0;
         const interval = setInterval(() => {
-            if (currentPhase < phases.length) {
-                scanStatusText.innerText = phases[currentPhase].t;
-                scanBarFill.style.width = `${phases[currentPhase].p}%`;
+            if (currentPhase < verificationPhases.length) {
+                scanStatusText.innerText = verificationPhases[currentPhase].t;
+                scanBarFill.style.width = `${verificationPhases[currentPhase].p}%`;
                 currentPhase++;
             } else {
                 clearInterval(interval);
                 
-                // Zapisz użytkownika jako w 100% zweryfikowanego realnego człowieka
+                // Tworzenie oficjalnego, prawdziwego profilu bez zdjęcia twarzy
                 const userData = {
                     username: tempUserData.username,
                     fullname: tempUserData.fullname,
-                    avatar: base64Avatar,
+                    phone: tempUserData.phone,
+                    // Domyślny, ładny awatar generowany na podstawie nazwy użytkownika
+                    avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${tempUserData.username}`,
                     isVerifiedHuman: true
                 };
                 
@@ -129,7 +132,7 @@ function initAuthEngine() {
                 step2.classList.add('hidden');
                 step3.classList.remove('hidden');
             }
-        }, 1000); // 1 sekunda na każdą fazę analizy bezpieczeństwa
+        }, 800);
     };
 
     document.getElementById('enter-platform-btn').onclick = () => {
@@ -154,7 +157,7 @@ function renderMainPage() {
             <img class="video-thumbnail" src="${v.thumb}" alt="Miniatura">
             <div class="video-info">
                 <h4>${v.title}</h4>
-                <p>👤 ${v.creator} ${v.verified ? '<span class="badge badge-verified" style="font-size:0.65rem; padding:1px 5px;">Prawdziwy Człowiek</span>' : ''}</p>
+                <p>👤 ${v.creator} ${v.verified ? '<span class="badge badge-verified" style="font-size:0.65rem; padding:1px 5px;">✓ Prawdziwy</span>' : ''}</p>
                 <p>Czas trwania: ${v.duration}</p>
             </div>
         `;
@@ -264,9 +267,9 @@ function renderFeed() {
         
         let header = `
             <div class="feed-header">
-                <img class="feed-avatar" src="${item.user === currentUser?.username ? currentUser.avatar : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=50'}">
+                <img class="feed-avatar" src="${item.user === currentUser?.username ? currentUser.avatar : 'https://api.dicebear.com/7.x/bottts/svg?seed=' + item.user}">
                 <strong>${item.user}</strong>
-                ${item.verified ? '<span class="badge badge-verified">✓ Człowiek</span>' : ''}
+                ${item.verified ? '<span class="badge badge-verified">✓ Zweryfikowany</span>' : ''}
             </div>`;
 
         if (item.type === 'post') {
@@ -347,7 +350,7 @@ function initUploadEngine() {
     function simulateChunkedUpload(file, duration) {
         let uploadedBytes = 0;
         const totalBytes = file.size;
-        const chunkSize = 10 * 1024 * 1024; 
+        const chunkSize = 15 * 1024 * 1024; 
         
         const interval = setInterval(() => {
             uploadedBytes += chunkSize;
@@ -377,12 +380,12 @@ function initUploadEngine() {
                 localStorage.setItem('platform_videos', JSON.stringify(currentVideos));
                 
                 statusText.innerText = "Serwer scalanie bloków danych... Gotowe!";
-                successBox.innerText = "Sukces! Film został pomyślnie zwalidowany i opublikowany.";
+                successBox.innerText = "Sukces! Film przeszedł poprawnie automatyczną walidację i został opublikowany.";
                 successBox.classList.remove('hidden');
                 document.getElementById('upload-submit-btn').disabled = false;
                 form.reset();
             }
-        }, 150);
+        }, 100);
     }
 }
 
@@ -391,8 +394,8 @@ function initUploadEngine() {
 // ==========================================
 function initProfileEngine() {
     const avatarPreview = document.getElementById('profile-avatar-preview');
+    const avatarInput = document.getElementById('avatar-input');
     
-    // Załaduj dane zalogowanego usera
     avatarPreview.src = currentUser.avatar;
     document.getElementById('profile-username-display').innerText = currentUser.username;
 
@@ -404,4 +407,20 @@ function initProfileEngine() {
 
     document.getElementById('stat-videos-count').innerText = myVideosCount;
     document.getElementById('stat-posts-count').innerText = myFeedCount;
+
+    // Możliwość manualnej zmiany awatara z pliku na telefonie/PC (już po rejestracji)
+    avatarInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64Image = event.target.result;
+                currentUser.avatar = base64Image;
+                localStorage.setItem('logged_in_user', JSON.stringify(currentUser));
+                avatarPreview.src = base64Image;
+                updateGlobalAvatars();
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 }
