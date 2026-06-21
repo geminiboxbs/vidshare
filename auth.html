@@ -3,68 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weryfikacja Tożsamości - GECODE Video</title>
+    <title>VidShare - Autoryzacja</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
-<body class="auth-body">
+<body>
     <div class="auth-container">
-        <div class="card auth-card">
-            <div class="logo" style="text-align: center; margin-bottom: 20px;">🎯 GECODE Video</div>
+        <div id="auth-step-1" class="auth-card">
+            <h2>Stwórz konto</h2>
+            <form id="register-form">
+                <input type="text" id="reg-username" placeholder="Nazwa użytkownika (login)" required>
+                <input type="text" id="reg-fullname" placeholder="Imię i nazwisko" required>
+                <input type="tel" id="reg-phone" placeholder="Numer telefonu (np. +48500600700)" required>
+                <input type="password" id="reg-password" placeholder="Hasło" required>
+                <button type="submit" class="btn">Zarejestruj się</button>
+            </form>
+        </div>
+
+        <div id="auth-step-2" class="auth-card hidden">
+            <h2>Weryfikacja SMS</h2>
+            <p id="sms-info-text"></p>
             
-            <div id="auth-step-1">
-                <h2>Stwórz Prawdziwe Konto</h2>
-                <p class="info-text">Platforma wymaga powiązania konta z numerem telefonu. Zapobiega to masowej rejestracji botów.</p>
-                
-                <form id="register-form">
-                    <div class="form-group">
-                        <label for="reg-username">Nazwa użytkownika (pseudonim)</label>
-                        <input type="text" id="reg-username" required placeholder="np. Koder99">
-                    </div>
-                    <div class="form-group">
-                        <label for="reg-fullname">Imię i Nazwisko</label>
-                        <input type="text" id="reg-fullname" required placeholder="np. Jan Kowalski">
-                    </div>
-                    <div class="form-group">
-                        <label for="reg-phone">Numer telefonu (do weryfikacji SMS)</label>
-                        <input type="tel" id="reg-phone" required placeholder="+48 123 456 789">
-                    </div>
-                    <div class="form-group">
-                        <label for="reg-password">Hasło</label>
-                        <input type="password" id="reg-password" required placeholder="••••••••">
-                    </div>
-                    <button type="submit" class="btn">Wyślij kod weryfikacyjny</button>
-                </form>
+            <div id="recaptcha-container"></div>
+
+            <input type="text" id="sms-code-input" placeholder="6-cyfrowy kod z SMS" maxlength="6">
+            <button id="start-verification-btn" class="btn">Zweryfikuj kod</button>
+            
+            <div id="verification-error" class="error-msg hidden"></div>
+            
+            <div id="scan-progress-box" class="progress-box hidden">
+                <p id="scan-status-text">Sprawdzanie kodu tokenu...</p>
+                <div class="progress-bar"><div id="scan-bar-fill" class="progress-fill"></div></div>
             </div>
+        </div>
 
-            <div id="auth-step-2" class="hidden">
-                <h2>Autoryzacja Tokena SMS</h2>
-                <p class="info-text" id="sms-info-text">Wysłaliśmy jednorazowy kod autoryzacyjny na Twój numer.</p>
-                
-                <div class="verification-zone" style="border-style: solid;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label for="sms-code-input" style="display:block; margin-bottom:10px;">Wpisz 6-cyfrowy kod autoryzacyjny</label>
-                        <input type="text" id="sms-code-input" maxlength="6" style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;" placeholder="000000" required>
-                    </div>
-                </div>
-
-                <div id="scan-progress-box" class="hidden">
-                    <p id="scan-status-text">Sprawdzanie unikalności numeru w bazie danych...</p>
-                    <div class="progress-bar-bg">
-                        <div id="scan-bar-fill"></div>
-                    </div>
-                </div>
-
-                <div id="verification-error" class="error-msg hidden"></div>
-
-                <button id="start-verification-btn" class="btn">Zatwierdź i aktywuj konto</button>
-            </div>
-
-            <div id="auth-step-3" class="hidden" style="text-align: center;">
-                <div style="font-size: 4rem; color: #38d9a9; margin-bottom: 20px;">✓</div>
-                <h2>Konto Aktywne</h2>
-                <p class="info-text">Twój numer telefonu został pomyślnie powiązany. Konto zyskało status zweryfikowanego profilu.</p>
-                <button id="enter-platform-btn" class="btn">Wejdź na platformę</button>
-            </div>
+        <div id="auth-step-3" class="auth-card hidden">
+            <h2>Konto aktywne! 🎉</h2>
+            <p>Twój numer telefonu został pomyślnie zweryfikowany w chmurze Firebase.</p>
+            <button id="enter-platform-btn" class="btn">Wejdź na platformę</button>
         </div>
     </div>
 
