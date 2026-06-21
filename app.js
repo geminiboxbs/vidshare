@@ -2,6 +2,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSyATEGWHEEoFefaTI430QLrtm86rhVpOowk",
     authDomain: "vidsharepl.firebaseapp.com",
+    databaseURL: "https://vidsharepl-default-rtdb.europe-west1.firebasedatabase.app", // Automatyczny link do Twojej Realtime Database
     projectId: "vidsharepl",
     storageBucket: "vidsharepl.firebasestorage.app",
     messagingSenderId: "707546142335",
@@ -9,9 +10,9 @@ const firebaseConfig = {
     measurementId: "G-C9TJJ04ZZ6"
 };
 
-// Inicjalizacja Firebase i bazy Firestore
+// Inicjalizacja Firebase i bazy Realtime Database
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = firebase.database();
 
 const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
 const MAX_DURATION_SECONDS = 2 * 60 * 60; // 2 Godziny
@@ -46,7 +47,7 @@ function updateGlobalAvatars() {
 }
 
 // ==========================================
-// SYNCHRONIZOWANA AUTORYZACJA (auth.html)
+// PRAWDZIWA WERYFIKACJA SMS (auth.html)
 // ==========================================
 function initAuthEngine() {
     const regForm = document.getElementById('register-form');
@@ -63,19 +64,20 @@ function initAuthEngine() {
     const verifyError = document.getElementById('verification-error');
 
     let tempUserData = {};
-    let simulatedGeneratedCode = "";
+
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        'size': 'invisible'
+    });
 
     regForm.onsubmit = async (e) => {
         e.preventDefault();
         const username = document.getElementById('reg-username').value.trim();
         const phone = document.getElementById('reg-phone').value.trim();
 
-        // Sprawdzanie w Firestore czy login lub telefon zajęty
-        const userCheck = await db.collection('platform_users').where('username', '==', username).get();
-        const phoneCheck = await db.collection('platform_users').where('phone', '==', phone).get();
-
-        if (!userCheck.empty || !phoneCheck.empty) {
-            alert("Ten login lub numer telefonu jest już zarejestrowany!");
+        // Sprawdzanie czy login jest zajęty
+        const snapshot = await db.ref('platform_users').orderByChild('username').equalTo(username).once('value');
+        if (snapshot.exists()) {
+            alert("Ten login jest już zajęty przez kogoś innego!");
             return;
         }
         
@@ -86,18 +88,24 @@ function initAuthEngine() {
             password: document.getElementById('reg-password').value
         };
         
-        simulatedGeneratedCode = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        step1.classList.add('hidden');
-        step2.classList.remove('hidden');
-        smsInfoText.innerHTML = `Wysłaliśmy kod na numer <strong>${phone}</strong>.<br><span style="color:#38d9a9; font-weight:bold;">Twój kod SMS to: ${simulatedGeneratedCode}</span>`;
+        verifyError.classList.add('hidden');
+        try {
+            const confirmationResult = await firebase.auth().signInWithPhoneNumber(phone, window.recaptchaVerifier);
+            window.smsConfirmationResult = confirmationResult;
+
+            step1.classList.add('hidden');
+            step2.classList.remove('hidden');
+            smsInfoText.innerHTML = `Właśnie wysłaliśmy oficjalny kod weryfikacyjny na numer <strong>${phone}</strong>. Wpisz je poniżej.`;
+        } catch (error) {
+            alert("Błąd wysyłania SMS! Upewnij się, że wpisałeś kod kraju (np. +48...): " + error.message);
+        }
     };
 
     startVerifyBtn.onclick = async () => {
         const userEnteredCode = smsInput.value.trim();
         
-        if (userEnteredCode !== simulatedGeneratedCode) {
-            verifyError.innerText = "Błąd: Nieprawidłowy token.";
+        if (userEnteredCode.length !== 6) {
+            verifyError.innerText = "Kod autoryzacyjny musi mieć dokładnie 6 cyfr.";
             verifyError.classList.remove('hidden');
             return;
         }
@@ -106,20 +114,24 @@ function initAuthEngine() {
         scanProgressBox.classList.remove('hidden');
         startVerifyBtn.disabled = true;
         
-        const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${tempUserData.username}`;
-        
         try {
-            await db.collection('platform_users').add({
+            const authResult = await window.smsConfirmationResult.confirm(userEnteredCode);
+            const firebaseUser = authResult.user;
+
+            const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${tempUserData.username}`;
+            
+            // Zapis do struktury drzewiastej Realtime Database pod kluczem użytkownika
+            await db.ref('platform_users/' + firebaseUser.uid).set({
                 username: tempUserData.username,
                 fullname: tempUserData.fullname,
                 phone: tempUserData.phone,
                 password: tempUserData.password,
                 avatar: defaultAvatar,
-                created_at: firebase.firestore.FieldValue.serverTimestamp()
+                created_at: firebase.database.ServerValue.TIMESTAMP
             });
 
             scanBarFill.style.width = "100%";
-            scanStatusText.innerText = "Zsynchronizowano z chmurą Google Firebase!";
+            scanStatusText.innerText = "Telefon ze zweryfikowanym profilem zapisanym w bazie!";
 
             setTimeout(() => {
                 localStorage.setItem('logged_in_user', JSON.stringify({
@@ -133,9 +145,10 @@ function initAuthEngine() {
             }, 1000);
 
         } catch (error) {
-            verifyError.innerText = "Błąd Firebase: " + error.message;
+            verifyError.innerText = "Błąd: Kod jest nieprawidłowy lub wygasł.";
             verifyError.classList.remove('hidden');
             startVerifyBtn.disabled = false;
+            scanProgressBox.classList.add('hidden');
         }
     };
 
@@ -152,28 +165,34 @@ async function renderMainPage() {
     const player = document.getElementById('main-player');
     const currentTitle = document.getElementById('current-video-title');
     
-    const snapshot = await db.collection('platform_videos').orderBy('created_at', 'desc').get();
+    // Pobranie filmów z Realtime Database
+    db.ref('platform_videos').orderByChild('created_at').on('value', (snapshot) => {
+        grid.innerHTML = '';
+        const videos = [];
+        
+        snapshot.forEach((childSnapshot) => {
+            videos.unshift({ id: childSnapshot.key, ...childSnapshot.val() }); // unshift sortuje od najnowszych
+        });
 
-    grid.innerHTML = '';
-    snapshot.forEach(doc => {
-        const v = doc.data();
-        const card = document.createElement('div');
-        card.className = 'video-card';
-        card.innerHTML = `
-            <img class="video-thumbnail" src="${v.thumb || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400'}" alt="Miniatura">
-            <div class="video-info">
-                <h4>${v.title}</h4>
-                <p>👤 ${v.creator} ${v.verified ? '<span class="badge badge-verified" style="font-size:0.65rem; padding:1px 5px;">✓ Prawdziwy</span>' : ''}</p>
-                <p>Czas: ${v.duration}</p>
-            </div>
-        `;
-        card.onclick = () => {
-            player.src = v.url;
-            player.play();
-            currentTitle.innerHTML = `${v.title} <br> <small style="color:var(--text-muted); font-size:0.9rem;">Autor: ${v.creator}</small>`;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-        grid.appendChild(card);
+        videos.forEach(v => {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            card.innerHTML = `
+                <img class="video-thumbnail" src="${v.thumb || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400'}" alt="Miniatura">
+                <div class="video-info">
+                    <h4>${v.title}</h4>
+                    <p>👤 ${v.creator} ${v.verified ? '<span class="badge badge-verified" style="font-size:0.65rem; padding:1px 5px;">✓ Prawdziwy</span>' : ''}</p>
+                    <p>Czas: ${v.duration}</p>
+                </div>
+            `;
+            card.onclick = () => {
+                player.src = v.url;
+                player.play();
+                currentTitle.innerHTML = `${v.title} <br> <small style="color:var(--text-muted); font-size:0.9rem;">Autor: ${v.creator}</small>`;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+            grid.appendChild(card);
+        });
     });
 
     renderFeed();
@@ -219,16 +238,15 @@ function initFeedFormEvents() {
         e.preventDefault();
         const content = document.getElementById('post-content').value;
         
-        await db.collection('platform_feed').add({
+        await db.ref('platform_feed').push({
             type: 'post',
             user: currentUser.username,
             verified: currentUser.isVerifiedHuman,
             content: content,
-            created_at: firebase.firestore.FieldValue.serverTimestamp()
+            created_at: firebase.database.ServerValue.TIMESTAMP
         });
 
         document.getElementById('post-content').value = '';
-        renderFeed();
     };
 
     document.getElementById('poll-form').onsubmit = async (e) => {
@@ -243,17 +261,16 @@ function initFeedFormEvents() {
             }
         });
 
-        await db.collection('platform_feed').add({
+        await db.ref('platform_feed').push({
             type: 'poll',
             user: currentUser.username,
             verified: currentUser.isVerifiedHuman,
             question: question,
             options: optionsData,
-            created_at: firebase.firestore.FieldValue.serverTimestamp()
+            created_at: firebase.database.ServerValue.TIMESTAMP
         });
         
         document.getElementById('poll-form').reset();
-        renderFeed();
     };
 }
 
@@ -261,49 +278,57 @@ async function renderFeed() {
     const container = document.getElementById('community-feed');
     if (!container) return;
 
-    const snapshot = await db.collection('platform_feed').orderBy('created_at', 'desc').get();
-    container.innerHTML = '';
-
-    snapshot.forEach(doc => {
-        const item = doc.data();
-        const docId = doc.id;
-        const element = document.createElement('div');
-        element.className = 'feed-item';
+    // Funkcja .on() sprawia, że posty i głosy w ankietach odświeżają się same na żywo bez przeładowania strony!
+    db.ref('platform_feed').orderByChild('created_at').on('value', (snapshot) => {
+        container.innerHTML = '';
+        const items = [];
         
-        let header = `
-            <div class="feed-header">
-                <strong>${item.user}</strong>
-                ${item.verified ? '<span class="badge badge-verified">✓ Zweryfikowany</span>' : ''}
-            </div>`;
+        snapshot.forEach((childSnapshot) => {
+            items.unshift({ id: childSnapshot.key, ...childSnapshot.val() });
+        });
 
-        if (item.type === 'post') {
-            element.innerHTML = header + `<p>${item.content}</p>`;
-        } else if (item.type === 'poll') {
-            let pollHtml = header + `<p style="font-weight:600; margin-bottom:10px;">📊 ${item.question}</p>`;
-            item.options.forEach((opt, idx) => {
-                pollHtml += `
-                    <div class="poll-ui-option" onclick="votePoll('${docId}', ${idx})">
-                        <span>${opt.txt}</span>
-                        <strong>${opt.votes} głosów</strong>
-                    </div>`;
-            });
-            element.innerHTML = pollHtml;
-        }
-        container.appendChild(element);
+        items.forEach(item => {
+            const element = document.createElement('div');
+            element.className = 'feed-item';
+            
+            let header = `
+                <div class="feed-header">
+                    <strong>${item.user}</strong>
+                    ${item.verified ? '<span class="badge badge-verified">✓ Zweryfikowany</span>' : ''}
+                </div>`;
+
+            if (item.type === 'post') {
+                element.innerHTML = header + `<p>${item.content}</p>`;
+            } else if (item.type === 'poll') {
+                let pollHtml = header + `<p style="font-weight:600; margin-bottom:10px;">📊 ${item.question}</p>`;
+                
+                // Generowanie opcji ankiety
+                if(item.options) {
+                    item.options.forEach((opt, idx) => {
+                        pollHtml += `
+                            <div class="poll-ui-option" onclick="votePoll('${item.id}', ${idx})">
+                                <span>${opt.txt}</span>
+                                <strong>${opt.votes || 0} głosów</strong>
+                            </div>`;
+                    });
+                }
+                element.innerHTML = pollHtml;
+            }
+            container.appendChild(element);
+        });
     });
 }
 
-async function votePoll(docId, optionIdx) {
-    const docRef = db.collection('platform_feed').doc(docId);
-    const doc = await docRef.get();
+async function votePoll(itemId, optionIdx) {
+    const postRef = db.ref('platform_feed/' + itemId);
+    const snapshot = await postRef.once('value');
     
-    if (doc.exists) {
-        const item = doc.data();
+    if (snapshot.exists()) {
+        const item = snapshot.val();
         const updatedOptions = [...item.options];
-        updatedOptions[optionIdx].votes += 1;
+        updatedOptions[optionIdx].votes = (updatedOptions[optionIdx].votes || 0) + 1;
 
-        await docRef.update({ options: updatedOptions });
-        renderFeed();
+        await postRef.update({ options: updatedOptions });
     }
 }
 
@@ -363,18 +388,18 @@ function initUploadEngine() {
                 
                 const pct = Math.round((uploadedBytes / totalBytes) * 100);
                 progressFill.style.width = `${pct}%`;
-                statusText.innerText = `Zapis do struktur Google Cloud: ${pct}%`;
+                statusText.innerText = `Zapis do struktur Realtime Database: ${pct}%`;
 
                 if (uploadedBytes >= totalBytes) {
                     clearInterval(interval);
                     
-                    await db.collection('platform_videos').add({
+                    await db.ref('platform_videos').push({
                         title: document.getElementById('video-title').value,
                         duration: `${minutes}:${seconds}`,
                         url: objectURL,
                         creator: currentUser.username,
                         verified: currentUser.isVerifiedHuman,
-                        created_at: firebase.firestore.FieldValue.serverTimestamp()
+                        created_at: firebase.database.ServerValue.TIMESTAMP
                     });
 
                     statusText.innerText = "Zakończono synchronizację!";
@@ -396,9 +421,13 @@ async function initProfileEngine() {
     avatarPreview.src = currentUser.avatar;
     document.getElementById('profile-username-display').innerText = currentUser.username;
 
-    const videosSnap = await db.collection('platform_videos').where('creator', '==', currentUser.username).get();
-    const feedSnap = await db.collection('platform_feed').where('user', '==', currentUser.username).get();
+    // Pobranie filmów użytkownika w celu wyliczenia statystyk
+    db.ref('platform_videos').orderByChild('creator').equalTo(currentUser.username).once('value', (snapshot) => {
+        document.getElementById('stat-videos-count').innerText = snapshot.numChildren();
+    });
 
-    document.getElementById('stat-videos-count').innerText = videosSnap.size;
-    document.getElementById('stat-posts-count').innerText = feedSnap.size;
+    // Pobranie wpisów użytkownika
+    db.ref('platform_feed').orderByChild('user').equalTo(currentUser.username).once('value', (snapshot) => {
+        document.getElementById('stat-posts-count').innerText = snapshot.numChildren();
+    });
 }
