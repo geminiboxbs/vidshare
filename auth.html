@@ -13,7 +13,7 @@
             
             <div id="auth-step-1">
                 <h2>Stwórz Prawdziwe Konto</h2>
-                <p class="info-text">Platforma wymaga weryfikacji tożsamości. Zero botów, zero fałszywych profili.</p>
+                <p class="info-text">Platforma wymaga powiązania konta z numerem telefonu. Zapobiega to masowej rejestracji botów.</p>
                 
                 <form id="register-form">
                     <div class="form-group">
@@ -21,31 +21,34 @@
                         <input type="text" id="reg-username" required placeholder="np. Koder99">
                     </div>
                     <div class="form-group">
-                        <label for="reg-fullname">Imię i Nazwisko (do weryfikacji)</label>
+                        <label for="reg-fullname">Imię i Nazwisko</label>
                         <input type="text" id="reg-fullname" required placeholder="np. Jan Kowalski">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-phone">Numer telefonu (do weryfikacji SMS)</label>
+                        <input type="tel" id="reg-phone" required placeholder="+48 123 456 789">
                     </div>
                     <div class="form-group">
                         <label for="reg-password">Hasło</label>
                         <input type="password" id="reg-password" required placeholder="••••••••">
                     </div>
-                    <button type="submit" class="btn">Przejdź do weryfikacji twarzy</button>
+                    <button type="submit" class="btn">Wyślij kod weryfikacyjny</button>
                 </form>
             </div>
 
             <div id="auth-step-2" class="hidden">
-                <h2>Weryfikacja Biometryczna AI</h2>
-                <p class="info-text">Prześlij swoje prawdziwe zdjęcie (selfie) z pamięci telefonu lub PC. Nasz algorytm sprawdzi zgodność i odrzuci generowane grafiki oraz boty.</p>
+                <h2>Autoryzacja Tokena SMS</h2>
+                <p class="info-text" id="sms-info-text">Wysłaliśmy jednorazowy kod autoryzacyjny na Twój numer.</p>
                 
-                <div class="verification-zone">
-                    <div class="camera-placeholder">
-                        <img id="biometric-preview" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200" alt="Podgląd">
+                <div class="verification-zone" style="border-style: solid;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="sms-code-input" style="display:block; margin-bottom:10px;">Wpisz 6-cyfrowy kod autoryzacyjny</label>
+                        <input type="text" id="sms-code-input" maxlength="6" style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;" placeholder="000000" required>
                     </div>
-                    <label for="biometric-file" class="btn-secondary">Wybierz zdjęcie z urządzenia</label>
-                    <input type="file" id="biometric-file" accept="image/*" style="display: none;">
                 </div>
 
                 <div id="scan-progress-box" class="hidden">
-                    <p id="scan-status-text">Inicjalizacja skanera twarzy...</p>
+                    <p id="scan-status-text">Sprawdzanie unikalności numeru w bazie danych...</p>
                     <div class="progress-bar-bg">
                         <div id="scan-bar-fill"></div>
                     </div>
@@ -53,13 +56,13 @@
 
                 <div id="verification-error" class="error-msg hidden"></div>
 
-                <button id="start-verification-btn" class="btn" disabled>Uruchom Skaner Anty-Fake</button>
+                <button id="start-verification-btn" class="btn">Zatwierdź i aktywuj konto</button>
             </div>
 
             <div id="auth-step-3" class="hidden" style="text-align: center;">
-                <div style="font-size: 4rem; color: #51cf66; margin-bottom: 20px;">✓</div>
-                <h2>Konto Zweryfikowane!</h2>
-                <p class="info-text">System potwierdził, że jesteś prawdziwym człowiekiem. Twój profil otrzymał odznakę autentyczności.</p>
+                <div style="font-size: 4rem; color: #38d9a9; margin-bottom: 20px;">✓</div>
+                <h2>Konto Aktywne</h2>
+                <p class="info-text">Twój numer telefonu został pomyślnie powiązany. Konto zyskało status zweryfikowanego profilu.</p>
                 <button id="enter-platform-btn" class="btn">Wejdź na platformę</button>
             </div>
         </div>
