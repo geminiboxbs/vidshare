@@ -3,44 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mój Profil - GECODE Video</title>
+    <title>VidShare - Profil</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">🎯 GECODE Video</div>
+        <a href="index.html" class="logo">VidShare</a>
         <div class="nav-links">
-            <a href="index.html">Główna</a>
-            <a href="upload.html">Dodaj Film</a>
-            <a href="profile.html" class="active">Mój Profil</a>
+            <a href="index.html">🏠 Strona główna</a>
+            <a href="upload.html">➕ Dodaj film</a>
         </div>
     </nav>
 
-    <div class="container small-container">
-        <div class="card profile-card">
-            <h2>Twój Prawdziwy Profil</h2>
+    <div class="profile-container">
+        <div class="profile-card">
+            <img id="profile-avatar-preview" src="" alt="Avatar" class="profile-avatar">
+            <h2 id="profile-username-display">Użytkownik</h2>
+            <span class="badge badge-verified">✓ Prawdziwy Człowiek</span>
             
-            <div class="avatar-container">
-                <img id="profile-avatar-preview" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200" alt="Avatar">
-                <label for="avatar-input" class="btn-avatar">Zmień zdjęcie</label>
-                <input type="file" id="avatar-input" accept="image/*" style="display: none;">
-            </div>
-
-            <div class="profile-info">
-                <h3 id="profile-username-display">Użytkownik_921</h3>
-                <p>Status: <span class="badge badge-verified">Zweryfikowany Profil</span></p>
-            </div>
-
-            <hr>
-
-            <div class="profile-stats">
-                <div class="stat-item">
-                    <span class="stat-number" id="stat-videos-count">0</span>
-                    <span class="stat-label">Filmów</span>
+            <hr class="divider">
+            
+            <h3>Twoje statystyki z bazy sieciowej:</h3>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <h4 id="stat-videos-count">0</h4>
+                    <p>Wrzuconych filmów</p>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-number" id="stat-posts-count">0</span>
-                    <span class="stat-label">Postów / Ankiet</span>
+                <div class="stat-box">
+                    <h4 id="stat-posts-count">0</h4>
+                    <p>Aktywności na tablicy</p>
                 </div>
             </div>
         </div>
