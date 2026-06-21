@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weryfikacja Tożsamości - GECODE Video</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="card auth-card">
+            <div class="logo" style="text-align: center; margin-bottom: 20px;">🎯 GECODE Video</div>
+            
+            <div id="auth-step-1">
+                <h2>Stwórz Prawdziwe Konto</h2>
+                <p class="info-text">Platforma wymaga weryfikacji tożsamości. Zero botów, zero fałszywych profili.</p>
+                
+                <form id="register-form">
+                    <div class="form-group">
+                        <label for="reg-username">Nazwa użytkownika (pseudonim)</label>
+                        <input type="text" id="reg-username" required placeholder="np. Koder99">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-fullname">Imię i Nazwisko (do weryfikacji)</label>
+                        <input type="text" id="reg-fullname" required placeholder="np. Jan Kowalski">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">Hasło</label>
+                        <input type="password" id="reg-password" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn">Przejdź do weryfikacji twarzy</button>
+                </form>
+            </div>
+
+            <div id="auth-step-2" class="hidden">
+                <h2>Weryfikacja Biometryczna AI</h2>
+                <p class="info-text">Prześlij swoje prawdziwe zdjęcie (selfie) z pamięci telefonu lub PC. Nasz algorytm sprawdzi zgodność i odrzuci generowane grafiki oraz boty.</p>
+                
+                <div class="verification-zone">
+                    <div class="camera-placeholder">
+                        <img id="biometric-preview" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200" alt="Podgląd">
+                    </div>
+                    <label for="biometric-file" class="btn-secondary">Wybierz zdjęcie z urządzenia</label>
+                    <input type="file" id="biometric-file" accept="image/*" style="display: none;">
+                </div>
+
+                <div id="scan-progress-box" class="hidden">
+                    <p id="scan-status-text">Inicjalizacja skanera twarzy...</p>
+                    <div class="progress-bar-bg">
+                        <div id="scan-bar-fill"></div>
+                    </div>
+                </div>
+
+                <div id="verification-error" class="error-msg hidden"></div>
+
+                <button id="start-verification-btn" class="btn" disabled>Uruchom Skaner Anty-Fake</button>
+            </div>
+
+            <div id="auth-step-3" class="hidden" style="text-align: center;">
+                <div style="font-size: 4rem; color: #51cf66; margin-bottom: 20px;">✓</div>
+                <h2>Konto Zweryfikowane!</h2>
+                <p class="info-text">System potwierdził, że jesteś prawdziwym człowiekiem. Twój profil otrzymał odznakę autentyczności.</p>
+                <button id="enter-platform-btn" class="btn">Wejdź na platformę</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
