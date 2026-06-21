@@ -3,47 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dodaj Film - GECODE Video</title>
+    <title>VidShare - Publikuj</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">🎯 GECODE Video</div>
+        <a href="index.html" class="logo">VidShare</a>
         <div class="nav-links">
-            <a href="index.html">Główna</a>
-            <a href="upload.html" class="active">Dodaj Film</a>
-            <a href="profile.html">Mój Profil</a>
+            <a href="index.html">🏠 Strona główna</a>
+            <a href="profile.html">👤 Profil</a>
         </div>
     </nav>
 
-    <div class="container small-container">
-        <div class="card">
+    <div class="upload-container">
+        <div class="upload-card">
             <h2>Prześlij nowy film</h2>
-            <p class="info-text">Maksymalny rozmiar: <strong>2 GB</strong>. Maksymalna długość: <strong>2 godziny (120 minut)</strong>.</p>
+            <p class="subtitle">Maksymalny rozmiar pliku: 2 GB. Maksymalna długość: 2 godziny.</p>
             
             <form id="upload-form">
-                <div class="form-group">
-                    <label for="video-title">Tytuł filmu</label>
-                    <input type="text" id="video-title" required placeholder="Wpisz tytuł filmu...">
-                </div>
-
-                <div class="form-group">
-                    <label for="video-file" class="file-label">Wybierz plik wideo</label>
-                    <input type="file" id="video-file" accept="video/*" required>
-                </div>
-
-                <div id="upload-error" class="error-msg hidden"></div>
-                <div id="upload-success" class="success-msg hidden"></div>
-
-                <div id="progress-container" class="hidden">
-                    <p id="upload-status-text">Przygotowanie pliku do wysyłki...</p>
-                    <div class="progress-bar-bg">
-                        <div id="progress-bar-fill"></div>
-                    </div>
-                </div>
-
-                <button type="submit" id="upload-submit-btn" class="btn">Rozpocznij wysyłanie</button>
+                <label>Tytuł filmu</label>
+                <input type="text" id="video-title" placeholder="Wpisz chwytliwy tytuł..." required>
+                
+                <label>Wybierz plik wideo</label>
+                <input type="file" id="video-file" accept="video/*" required>
+                
+                <button type="submit" id="upload-submit-btn" class="btn">Zsynchronizuj i opublikuj</button>
             </form>
+
+            <div id="upload-error" class="error-msg hidden"></div>
+            <div id="upload-success" class="success-msg hidden"></div>
+
+            <div id="progress-container" class="progress-box hidden">
+                <p id="upload-status-text">Przetwarzanie danych...</p>
+                <div class="progress-bar"><div id="progress-bar-fill" class="progress-fill"></div></div>
+            </div>
         </div>
     </div>
 
