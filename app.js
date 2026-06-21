@@ -2,7 +2,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSyATEGWHEEoFefaTI430QLrtm86rhVpOowk",
     authDomain: "vidsharepl.firebaseapp.com",
-    databaseURL: "https://vidsharepl-default-rtdb.europe-west1.firebasedatabase.app", // Automatyczny link do Twojej Realtime Database
+    databaseURL: "https://vidsharepl-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "vidsharepl",
     storageBucket: "vidsharepl.firebasestorage.app",
     messagingSenderId: "707546142335",
@@ -10,7 +10,6 @@ const firebaseConfig = {
     measurementId: "G-C9TJJ04ZZ6"
 };
 
-// Inicjalizacja Firebase i bazy Realtime Database
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -25,7 +24,6 @@ if (!currentUser && !isAuthPage) {
     window.location.href = 'auth.html';
 }
 
-// --- GLOBALNY EVENT LISTENER ---
 document.addEventListener('DOMContentLoaded', () => {
     updateGlobalAvatars();
     
@@ -42,7 +40,12 @@ function updateGlobalAvatars() {
     if (!currentUser) return;
     const navLink = document.getElementById('nav-profile-link');
     if (navLink) {
-        navLink.innerHTML = `<img src="${currentUser.avatar}" style="width:25px; height:25px; border-radius:50%; vertical-align:middle; margin-right:5px; object-fit:cover;"> ${currentUser.username}`;
+        navLink.innerHTML = `
+            <div class="nav-avatar-container">
+                <img src="${currentUser.avatar}" class="nav-avatar">
+                <span>${currentUser.username}</span>
+            </div>
+        `;
     }
 }
 
@@ -74,10 +77,9 @@ function initAuthEngine() {
         const username = document.getElementById('reg-username').value.trim();
         const phone = document.getElementById('reg-phone').value.trim();
 
-        // Sprawdzanie czy login jest zajęty
         const snapshot = await db.ref('platform_users').orderByChild('username').equalTo(username).once('value');
         if (snapshot.exists()) {
-            alert("Ten login jest już zajęty przez kogoś innego!");
+            alert("Ten login jest już zajęty!");
             return;
         }
         
@@ -95,9 +97,9 @@ function initAuthEngine() {
 
             step1.classList.add('hidden');
             step2.classList.remove('hidden');
-            smsInfoText.innerHTML = `Właśnie wysłaliśmy oficjalny kod weryfikacyjny na numer <strong>${phone}</strong>. Wpisz je poniżej.`;
+            smsInfoText.innerHTML = `Wysłaliśmy oficjalny kod weryfikacyjny na numer: <br><strong style="color:var(--accent); font-size:1.1rem;">${phone}</strong>`;
         } catch (error) {
-            alert("Błąd wysyłania SMS! Upewnij się, że wpisałeś kod kraju (np. +48...): " + error.message);
+            alert("Błąd wysyłania SMS! Format: +48XXXXXXXXX. " + error.message);
         }
     };
 
@@ -105,7 +107,7 @@ function initAuthEngine() {
         const userEnteredCode = smsInput.value.trim();
         
         if (userEnteredCode.length !== 6) {
-            verifyError.innerText = "Kod autoryzacyjny musi mieć dokładnie 6 cyfr.";
+            verifyError.innerText = "Kod musi składać się z 6 cyfr.";
             verifyError.classList.remove('hidden');
             return;
         }
@@ -120,7 +122,6 @@ function initAuthEngine() {
 
             const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${tempUserData.username}`;
             
-            // Zapis do struktury drzewiastej Realtime Database pod kluczem użytkownika
             await db.ref('platform_users/' + firebaseUser.uid).set({
                 username: tempUserData.username,
                 fullname: tempUserData.fullname,
@@ -131,7 +132,7 @@ function initAuthEngine() {
             });
 
             scanBarFill.style.width = "100%";
-            scanStatusText.innerText = "Telefon ze zweryfikowanym profilem zapisanym w bazie!";
+            scanStatusText.innerText = "Profil zweryfikowany pomyślnie!";
 
             setTimeout(() => {
                 localStorage.setItem('logged_in_user', JSON.stringify({
@@ -145,7 +146,7 @@ function initAuthEngine() {
             }, 1000);
 
         } catch (error) {
-            verifyError.innerText = "Błąd: Kod jest nieprawidłowy lub wygasł.";
+            verifyError.innerText = "Błąd: Nieprawidłowy kod.";
             verifyError.classList.remove('hidden');
             startVerifyBtn.disabled = false;
             scanProgressBox.classList.add('hidden');
@@ -165,30 +166,43 @@ async function renderMainPage() {
     const player = document.getElementById('main-player');
     const currentTitle = document.getElementById('current-video-title');
     
-    // Pobranie filmów z Realtime Database
     db.ref('platform_videos').orderByChild('created_at').on('value', (snapshot) => {
         grid.innerHTML = '';
         const videos = [];
         
         snapshot.forEach((childSnapshot) => {
-            videos.unshift({ id: childSnapshot.key, ...childSnapshot.val() }); // unshift sortuje od najnowszych
+            videos.unshift({ id: childSnapshot.key, ...childSnapshot.val() });
         });
+
+        if (videos.length === 0) {
+            grid.innerHTML = `<p class="empty-state">Brak filmów w bazie. Bądź pierwszy i dodaj coś!</p>`;
+            return;
+        }
 
         videos.forEach(v => {
             const card = document.createElement('div');
             card.className = 'video-card';
             card.innerHTML = `
-                <img class="video-thumbnail" src="${v.thumb || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400'}" alt="Miniatura">
+                <div class="thumbnail-wrapper">
+                    <img class="video-thumbnail" src="${v.thumb || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400'}" alt="Miniatura">
+                    <span class="video-duration-badge">${v.duration}</span>
+                </div>
                 <div class="video-info">
-                    <h4>${v.title}</h4>
-                    <p>👤 ${v.creator} ${v.verified ? '<span class="badge badge-verified" style="font-size:0.65rem; padding:1px 5px;">✓ Prawdziwy</span>' : ''}</p>
-                    <p>Czas: ${v.duration}</p>
+                    <h4 class="video-card-title">${v.title}</h4>
+                    <p class="video-card-creator">
+                        👤 <span>${v.creator}</span> 
+                        ${v.verified ? '<span class="badge-verified-mini">✓</span>' : ''}
+                    </p>
                 </div>
             `;
             card.onclick = () => {
                 player.src = v.url;
                 player.play();
-                currentTitle.innerHTML = `${v.title} <br> <small style="color:var(--text-muted); font-size:0.9rem;">Autor: ${v.creator}</small>`;
+                currentTitle.innerHTML = `
+                    <span class="playing-now">Teraz odtwarzasz:</span>
+                    <h2>${v.title}</h2>
+                    <p class="player-creator-meta">Twórca: <strong>${v.creator}</strong></p>
+                `;
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
             grid.appendChild(card);
@@ -278,7 +292,6 @@ async function renderFeed() {
     const container = document.getElementById('community-feed');
     if (!container) return;
 
-    // Funkcja .on() sprawia, że posty i głosy w ankietach odświeżają się same na żywo bez przeładowania strony!
     db.ref('platform_feed').orderByChild('created_at').on('value', (snapshot) => {
         container.innerHTML = '';
         const items = [];
@@ -287,28 +300,41 @@ async function renderFeed() {
             items.unshift({ id: childSnapshot.key, ...childSnapshot.val() });
         });
 
+        if (items.length === 0) {
+            container.innerHTML = `<p class="empty-state">Cisza na tablicy... Napisz coś!</p>`;
+            return;
+        }
+
         items.forEach(item => {
             const element = document.createElement('div');
             element.className = 'feed-item';
             
             let header = `
                 <div class="feed-header">
-                    <strong>${item.user}</strong>
-                    ${item.verified ? '<span class="badge badge-verified">✓ Zweryfikowany</span>' : ''}
+                    <span class="feed-user">@${item.user}</span>
+                    ${item.verified ? '<span class="badge-verified">✓ Zweryfikowany</span>' : ''}
                 </div>`;
 
             if (item.type === 'post') {
-                element.innerHTML = header + `<p>${item.content}</p>`;
+                element.innerHTML = header + `<div class="feed-body-text">${item.content}</div>`;
             } else if (item.type === 'poll') {
-                let pollHtml = header + `<p style="font-weight:600; margin-bottom:10px;">📊 ${item.question}</p>`;
+                let pollHtml = header + `<div class="feed-body-poll-q">📊 ${item.question}</div>`;
                 
-                // Generowanie opcji ankiety
                 if(item.options) {
+                    // Wyliczenie sumy głosów dla procentów
+                    const totalVotes = item.options.reduce((sum, o) => sum + (o.votes || 0), 0);
+
                     item.options.forEach((opt, idx) => {
+                        const votes = opt.votes || 0;
+                        const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+
                         pollHtml += `
                             <div class="poll-ui-option" onclick="votePoll('${item.id}', ${idx})">
-                                <span>${opt.txt}</span>
-                                <strong>${opt.votes || 0} głosów</strong>
+                                <div class="poll-progress-bg" style="width: ${pct}%"></div>
+                                <div class="poll-option-content">
+                                    <span>${opt.txt}</span>
+                                    <strong>${pct}% (${votes})</strong>
+                                </div>
                             </div>`;
                     });
                 }
@@ -362,7 +388,7 @@ function initUploadEngine() {
         const objectURL = URL.createObjectURL(file);
         videoValidator.src = objectURL;
         
-        statusText.innerText = "Analiza i synchronizacja strumienia...";
+        statusText.innerText = "Przygotowywanie strumienia danych...";
         progressContainer.classList.remove('hidden');
         document.getElementById('upload-submit-btn').disabled = true;
 
@@ -383,12 +409,12 @@ function initUploadEngine() {
             const totalBytes = file.size;
             
             const interval = setInterval(async () => {
-                uploadedBytes += 30 * 1024 * 1024;
+                uploadedBytes += 45 * 1024 * 1024; // Lekko przyspieszony krok zapisu
                 if (uploadedBytes > totalBytes) uploadedBytes = totalBytes;
                 
                 const pct = Math.round((uploadedBytes / totalBytes) * 100);
                 progressFill.style.width = `${pct}%`;
-                statusText.innerText = `Zapis do struktur Realtime Database: ${pct}%`;
+                statusText.innerText = `Zapis segmentów w bazie danych: ${pct}%`;
 
                 if (uploadedBytes >= totalBytes) {
                     clearInterval(interval);
@@ -402,13 +428,13 @@ function initUploadEngine() {
                         created_at: firebase.database.ServerValue.TIMESTAMP
                     });
 
-                    statusText.innerText = "Zakończono synchronizację!";
-                    successBox.innerText = "Sukces! Film jest od teraz widoczny dla każdego użytkownika platformy.";
+                    statusText.innerText = "Synchronizacja pomyślna!";
+                    successBox.innerText = "Sukces! Film natychmiast trafił na tablicę główną sieci.";
                     successBox.classList.remove('hidden');
                     document.getElementById('upload-submit-btn').disabled = false;
                     form.reset();
                 }
-            }, 100);
+            }, 80);
         };
     };
 }
@@ -421,12 +447,10 @@ async function initProfileEngine() {
     avatarPreview.src = currentUser.avatar;
     document.getElementById('profile-username-display').innerText = currentUser.username;
 
-    // Pobranie filmów użytkownika w celu wyliczenia statystyk
     db.ref('platform_videos').orderByChild('creator').equalTo(currentUser.username).once('value', (snapshot) => {
         document.getElementById('stat-videos-count').innerText = snapshot.numChildren();
     });
 
-    // Pobranie wpisów użytkownika
     db.ref('platform_feed').orderByChild('user').equalTo(currentUser.username).once('value', (snapshot) => {
         document.getElementById('stat-posts-count').innerText = snapshot.numChildren();
     });
